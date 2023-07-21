@@ -220,6 +220,13 @@ Utilities for testing the Ion denotational model.
       (string_to_symbol (eject (check_lower sym Unicode)))
       (quote '#$0')))
 
+  /*
+  (define (eject_Symbolic sym)
+    (union_typecase sym
+      (Unicode (string_to_symbol (eject sym)))
+      (Sym0    (quote '#$0'))))
+  */
+
   (define (eject_Symbolics syms)
     (assert (element_of syms 'Symbolic*'))
     (map eject_Symbolic (seq_to_sexp syms)))

@@ -365,6 +365,20 @@ Lifts a subdomain value into a union domain.
           1 d v))
       rep))
 
+  (define_syntax union_typecase
+    '''
+    (union_typecase val (domain expr) ...)
+
+    (let [(v VAL)]
+      (unless (is_union_domain_value v) (raise ...))
+      (unless (bag_equal === (union_domain_subdomains (domain_value_domain v))
+                             [domain, ...]))
+      (let [(sub (subdomain v))]
+        ))
+
+    '''
+    (lambda (stx) true))
+
 
   //-------------------
   // Product Domains
