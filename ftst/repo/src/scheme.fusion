@@ -1,0 +1,28 @@
+// Copyright (c) 2023 Amazon.com, Inc.  All rights reserved.
+
+(module scheme_model "/fusion"
+  '''
+Rough denotational model of Scheme, following Queinnec.
+  '''
+
+  (require "/fusioncontrib/denotation")
+
+  (provide (all_defined_out))
+
+
+  (define_model Scheme
+    (dom Boolean = (^ is_bool)      "Booleans")
+    (dom Integer = (^ is_int)       "Integers")
+
+    (dom Value = (* Function Boolean Integer ))
+
+    (dom Continuation = (-> Value Memory Value))
+    (dom Function     = (-> Value Continuation Memory Value))
+
+    (dom Identifier  = (^ is_symbol))
+    (dom Address     = "Abstract addresses")
+    (dom Environment = (-> Identifier Address))
+    (dom Memory      = (-> Address Value))
+
+  )
+)
