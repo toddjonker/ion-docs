@@ -128,6 +128,9 @@ Spec Problems
 
 
     (fn Symbolic_text_matches ((s Symbolic) (t Unicode) -> B)
+//      (downcase s
+//        (Unicode (=== (eject t) (eject s)))
+//        (Sym0    false))
       (if (element_of s Unicode)
         (=== (eject t) (eject (lower_to Unicode s)))
         false))
@@ -138,6 +141,9 @@ Spec Problems
         false))
 
     (fn Value_is_symbol_matching ((v Value) (u Unicode) -> B)
+//      (downcase (value_content v)
+//        (Symbol::s => (Symbol_text_matches s u))
+//        (*         => false))
       (if (element_of (value_content v) Symbol)
         (Symbol_text_matches (lower_to Symbol (value_content v)) u)
         false))
@@ -156,6 +162,9 @@ Spec Problems
       (Fields_get1 (lower_to 'Field*' s) u))
 
     (fn has_first_annot ((v Value) (u Unicode) -> B)
+//      (seq_case (value_annots v)
+//        ([] false)
+//        ([head, tail] (Symbolic_text_matches head u)))
       (if (seq_is_empty (value_annots v)) false
         (Symbolic_text_matches (seq_head (value_annots v)) u)))
 
@@ -419,6 +428,12 @@ Spec Problems
 
     (fn E_RContent ((vr RContent) (r Environment) (k CContinuation) -> 'Value*')
       // General value evaluation
+      (downcase vr
+        (SafeVal::v => (k (lift_to Content v)))
+        (   RSym::v => (E_RSym    v r k))
+        (  RList::v => (E_RList   v r k))
+        (RStruct::v => (E_RStruct v r k))
+        (    '*'::v => (raise "not implemented")))
       (if (element_of vr SafeVal)
         (k (lift_to Content (lower_to SafeVal vr)))
         (if (element_of vr RSym)
@@ -436,6 +451,11 @@ Spec Problems
                               (expand_SymTok r (lower_to SymTok v)))))))
 
     (fn E_RList ((v RList) (r Environment) (k CContinuation) -> 'Value*')
+      (downcase v
+        (DotNull::n  => (k (lift (singleton DotNull) List Content)))
+        ('RVal*'::vs => ('E*' vs r
+                          (mk_fn Continuation (vs1)
+                            (k (lift vs1 List Content))))))
       (if (element_of v DotNull)
         (k (lift_to Content (lift_to List (singleton DotNull))))
         ('E*' (lower_to 'RVal*' v) r
@@ -468,6 +488,13 @@ Spec Problems
 
 
     (fn 'E*' ((vrs 'RVal*') (r Environment) (k Continuation) -> 'Value*')
+      (seqcase vrs
+        ([]      => (k (seq 'Value*')))
+        ([v, vs] => (E v r
+                      (mk_fn Continuation (vs1)
+                        ('E*' vs r
+                          (mk_fn Continuation (vs2)
+                            (k (seq_append vs1 vs2))))))))
       (if (seq_is_empty vrs)
         (k (seq 'Value*'))
         (E (seq_head vrs) r
