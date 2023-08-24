@@ -1882,7 +1882,7 @@ It is illegal for an annotations sequence to appear before any of the following:
 to the expansion of an E-expression, see the `annotate` macro. (TODO: Link)
 
 [[annotations_with_symbol_addresses]]
-=== Annotations With Symbol Addresses
+==== Annotations With Symbol Addresses
 Opcodes `0xE4` through `0xE6` indicate one or more annotations encoded as symbol addresses. If the opcode is:
 
 * `0xE4`, a single <<flexuint, `FlexUInt`>>-encoded symbol address follows.
@@ -1923,7 +1923,7 @@ E5 07 15 17 19 5F
 ----
 
 [[annotations_with_flexsym_text]]
-=== Annotations With `FlexSym` Text
+==== Annotations With `FlexSym` Text
 
 Opcodes `0xE7` through `0xE9` indicate one or more annotations encoded as <<flexsym, `FlexSym`>>s.
 
