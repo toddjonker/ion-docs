@@ -89,12 +89,6 @@ namespace :spec do
 
     # See our dblatex/README.md for explanation.
 
-    # https://www.mankier.com/1/xmlto
-    xmlto_params = [
-      "--skip-validation",
-      # "-vv",                       # Enables --verbose for dblatex
-    ]
-
     # https://www.mankier.com/1/dblatex
     dblatex_params = [
       "--param=latex.encoding=utf8",
@@ -115,11 +109,9 @@ namespace :spec do
     sty = "/workspace/dblatex/tex/#{book}.sty"
     dblatex_params << "--texstyle=#{book}" if File.readable?(sty)
 
-    safe_system('xmlto',  *xmlto_params,
-                '--with-dblatex',
-                '-p', dblatex_params.join(' '),
-                '-o', 'build',
-                'pdf',
+    safe_system('dblatex',  *dblatex_params,
+                '--output-dir=build',
+                '--pdf',
                 xml)
   end
 
