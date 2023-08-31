@@ -104,6 +104,10 @@ namespace :spec do
       "--debug",                  # Keep the /tmp subdir with tex files
     ]
 
+    # Book-specific XSL stylesheet
+    xsl = "/workspace/dblatex/xsl/#{File.basename(xml, '.xml')}.xsl"
+    dblatex_params << "--xsl-user=#{xsl}" if File.readable?(xsl)
+
     safe_system('xmlto',  *xmlto_params,
                 '--with-dblatex',
                 '-p', dblatex_params.join(' '),
