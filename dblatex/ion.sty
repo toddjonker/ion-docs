@@ -29,3 +29,12 @@
   literate={→}{{$\rightarrow$}}1
            {⇒}{{$\Rightarrow$}}1
 }
+
+
+%% Prevent the copyright from appearing on its own page.
+%% \maketitle is originally defined in dblatex's docbook.sty
+
+\def\maketitle{
+  \DBKcover
+  \newpage
+}
