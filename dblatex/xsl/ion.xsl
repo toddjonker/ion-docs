@@ -7,6 +7,12 @@
   <!-- Don't show collaborators/authors table. (Set by xmlto) -->
   <xsl:param name="doc.collab.show">0</xsl:param>
 
+  <!-- We want the TOC links in the titles, and in blue.
+    Documentation:
+     http://mirrors.ctan.org/macros/latex/contrib/hyperref/doc/hyperref-doc.html
+  -->
+  <xsl:param name="latex.hyperparam">colorlinks, linkcolor=blue, linktoc=all</xsl:param>
+
   <!-- Don't show revision history. (Set by xmlto.) -->
   <xsl:param name="latex.output.revhistory">0</xsl:param>
 
