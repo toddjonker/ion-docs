@@ -1,0 +1,6 @@
+\newcommand{\DSName}[1]{%
+  \IfStrEqCase{#1}{%
+    {Value}{\DSPlainDomain{Value}}%
+    {Value*}{\DSSeqDomain{Value}}%
+  }[\colorbox{red}{Unknown DSName: #1}]%
+}

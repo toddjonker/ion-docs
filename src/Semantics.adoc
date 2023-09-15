@@ -17,9 +17,15 @@
 include::styles.adoc[]
 
 // TODO Can we write attributes that expand to stem?  eg for domain names.
+// This doesn't work; the stem isn't processed after the attribute substitution.
+// :Dom_B:stem:[\DomainB]
 
 
 == Introduction
+
+The domain stem:[\DSName{Value}] is normal,
+stem:[\DSName{Value*}] is seq,
+stem:[\DSName{bad}] is bad.
 
 When Ion 1.0 was created in 2007, its documentation consisted of a handful of
 wiki pages that were more of a user guide than a specification, intended to be
