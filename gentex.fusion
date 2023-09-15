@@ -35,3 +35,15 @@
   (displayln "\\newline")
 )
 (displayln "% end::functions[]")
+
+
+// Things we can print:
+//  * Domain names
+//  * Domain signatures
+//  * Domain definitions ( name = signature )
+//  * Function names
+//  * Function signatures
+//  * Function definitions (name = body / signature )
+//
+// Challenges:
+//  * Domain names have characters like '*' that can't be in TeX command names.

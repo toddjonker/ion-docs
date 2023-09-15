@@ -1,0 +1,26 @@
+// Copyright (c) 2023 Amazon.com, Inc.  All rights reserved.
+
+(require
+  "/fusioncontrib/denotation/printing"
+  "/ion_model/latex"
+  "/ion_model/model"
+)
+
+
+(displayln "%%%---------------------------------------------------------")
+(displayln "%%% This file was generated at " (timestamp_now))
+(displayln "%%%---------------------------------------------------------")
+// Adding any blank lines will cause TeX to complain if this whole file is
+// included into AsciiDoc.
+
+
+// Things we can print:
+//  * Domain names                                    \DomainFoo
+//  * Domain signatures                               \SignatureFoo
+//  * Domain definitions ( name = signature )         \DefnFoo
+//  * Function names                                  \DSNameFoo
+//  * Function signatures
+//  * Function definitions (name = body / signature )
+//
+// Challenges:
+//  * Domain names have characters like '*' that can't be in TeX command names.
