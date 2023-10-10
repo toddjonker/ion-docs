@@ -19,6 +19,13 @@
 A model printer that renders in LaTeX format, for inclusion in a larger book.
     '''
     (make_printer latexprint
+
+      (sym_image "\\widehat{\\mbox{\\bf Value}}"                       'RValue')
+      (sym_image "\\widehat{\\mbox{\\bf Value}^{\\ast}}"               'RValue*')
+      (sym_image "\\widehat{\\overline{\\mbox{\\bf Value}}}"           'TRValue')
+      (sym_image "\\widehat{\\overline{\\mbox{\\bf Value}^{\\ast}}}"   'TRValue*')
+      (sym_image "\\overline{\\mbox{\\bf Continuation}}"               'TContinuation')
+
       // TODO these functions, and the print configuration, should be generated.
       (accessor Environment_catalog  "catalog")
       (accessor Environment_IVM      "IVM")
