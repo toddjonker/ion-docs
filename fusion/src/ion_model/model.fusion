@@ -101,17 +101,26 @@ Spec Problems
     (dom SSymTok   = (+ Unicode I))
     (dom SSymbol   = (+ SSymTok DotNull))
 
-    (dom SList     = (+ 'STree*' DotNull))
-    (dom SSexp     = (+ 'STree*' DotNull))
+    // TODO This would work better if the content was a ? domain
 
-    (dom SField    = (* SSymTok STree))
-    (dom SStruct   = (+ 'SField*' DotNull))
+    (dom StxNull    = (+ 'SSymTok*'))
+    (dom StxBool    = (+ 'SSymTok*' Bool))
+    (dom StxInt     = (+ 'SSymTok*' Int))
+    (dom StxString  = (+ 'SSymTok*' String))
+    (dom StxSymbol  = (+ 'SSymTok*' RSymbol))
 
+    (dom SList      = (+ 'STree*' DotNull))
+    (dom SSexp      = (+ 'STree*' DotNull))
 
-    (dom SContent   = (+ SSymbol SList SSexp SStruct NullNull Bool Int String
-                         /*Decimal Float Timestamp Blob Clob*/))
-    (dom SValue     = (* 'SSymTok*' SContent))
-    (dom STree      = (+ SValue /* Eexp will go here */))
+    (dom StxList    = (+ 'SSymTok*' RList))
+    (dom StxSexp    = (+ 'SSymTok*' RSexp))
+
+    (dom SField     = (* SSymTok STree))
+    (dom SStruct    = (+ 'SField*' DotNull))
+    (dom StxStruct  = (+ 'SSymTok*' SStruct))
+
+    (dom STree      = (+ StxNull StxBool StxInt StxString StxSymbol
+                         StxList StxSexp StxStruct /* Eexp will go here */))
     (dom TSTree     = (+ STree IVM))
 
     (fn SValue_annots  ((rv SValue) -> 'SSymTok*') (ith rv 0))
