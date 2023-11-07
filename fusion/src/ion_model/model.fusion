@@ -259,6 +259,41 @@ Spec Problems
                 ss1
                 (opt 'SharedModule?' (seq_head ss))))))))
 
+    (fn bestModule_SMs1 ((ss 'SharedModule*') (n Unicode) (v I) -> 'SharedModule?')
+      (if (seq_is_empty ss)
+        (opt 'SharedModule?')
+        // WARNING These variable names appear in the narrative, keep it in sync!
+        (let [(ss1 (bestModule_SMs1 (seq_tail ss) n v))]
+          (if (or (not (U_EQ (SharedModule_name (seq_head ss)) n))
+                  ('hint:paren'
+                    (and (not (EQ (SharedModule_version (seq_head ss)) v))
+                         (and (opt_is_present ss1)
+                              ('hint:paren'
+                                (or (EQ (SharedModule_version (opt_value ss1)) v)
+                                    (> (SharedModule_version (opt_value ss1))
+                                       (SharedModule_version (seq_head ss)))))))))
+                // The tail had an exact match, or larger version.
+                ss1
+                (opt 'SharedModule?' (seq_head ss))))))
+
+    (fn bestModule_SMs2 ((ss 'SharedModule*') (n Unicode) (v I) -> 'SharedModule?')
+      (if (seq_is_empty ss)
+        (opt 'SharedModule?')
+        // WARNING These variable names appear in the narrative, keep it in sync!
+        (let [(ss1 (bestModule_SMs2 (seq_tail ss) n v))]
+          (if (and (U_EQ (SharedModule_name (seq_head ss)) n)
+                   ('hint:paren'
+                     (or (EQ (SharedModule_version (seq_head ss)) v)
+                         (or (not (opt_is_present ss1))
+                             ('hint:paren'
+                               (and (not (EQ (SharedModule_version (opt_value ss1)) v))
+                                    (<= (SharedModule_version (opt_value ss1))
+                                        (SharedModule_version (seq_head ss)))))))))
+                // The tail had an exact match, or larger version.
+                (opt 'SharedModule?' (seq_head ss))
+                ss1))))
+
+
     (fn Catalog_extend ((c Catalog) (s SharedModule) -> Catalog)
       // TODO reject duplicate key
       (lift (seq_prepend s (lower c 'SharedModule*')) Catalog))
