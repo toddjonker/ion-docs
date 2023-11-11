@@ -48,6 +48,7 @@ References:
     'hint:multiline'
     'hint:oneline'
     'hint:paren'
+    'inline:let'
     is_base_domain
     is_const
     is_domain
@@ -158,6 +159,15 @@ When encountered by the pretty-printer, the argument code is printed within
 parentheses.
     '''
     v)
+
+
+  //============================================================================
+  // Inlined `let`
+
+  (define_syntax 'inline:let'
+    (lambda (stx)
+      (datum_to_syntax
+        (pair (QS let) (tail (syntax_unwrap stx))))))
 
 
   //============================================================================

@@ -79,5 +79,6 @@ semantics DSL.
     'hint:multiline'
     'hint:oneline'
     'hint:paren'
+    'inline:let'
   )
 )

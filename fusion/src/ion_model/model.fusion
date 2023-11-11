@@ -330,7 +330,7 @@ Spec Problems
         (if (or (U_EQ n "")
                 (U_EQ n "$ion"))
           EMPTY_SYMTOKS
-          (let [(s (best_match_Catalog (Environment_catalog r) n v))]
+          (let [(s (best_match_Catalog (Environment_catalog r) n v))]  // FIXME shadowing!
             (if (opt_is_present m)  // We have max_id, adjust the length
               (let [(ts ('hint:oneline'
                           (if (opt_is_present s)

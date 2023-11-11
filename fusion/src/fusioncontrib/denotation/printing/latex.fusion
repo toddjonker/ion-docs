@@ -255,6 +255,24 @@ or syntax string or symbol.
           (pp_bindings (tail bindings) e)))))
 
 
+
+  (define (pp_let_inline s e0)
+    // Create customization frames for each bound variable, printing its code
+    // instead of its name.  This is not really sound, due to name shadowing.
+    (let [(e1 (let loop [(e e0),
+                         (binds (apply sexp (syntax_unwrap (. s 1))))]
+                (if (is_empty binds) e
+                  (lets [(bind  (syntax_unwrap (head binds))),
+                         (var   (. bind 0)),
+                         (code  (. bind 1)),
+                         (frame (|v| (and (is_identifier v)
+                                          (bound_identifier_equal v var)
+                                          (|v e| (pp_print code e0)))))]
+                    (loop (pair frame e) (tail binds))))))]
+      // Print just the body of the `let`.
+      (pp_print (. s 2) e1)))
+
+
   (define (pp_let s e)
     (let [(e1 (pp_incr_indentation e))]
       (display LET_LET)
@@ -431,6 +449,7 @@ A model printer that renders in Unicode plain-text.
       (form_method IF              pp_if)
       (form_method IF1             pp_if)
       (form_method inject_into     pp_lift_to)
+      (form_method 'inline:let'    pp_let_inline)
       (form_method ith             pp_ith)
       (form_method lambda          pp_lambda)
       (form_method let             pp_let)
