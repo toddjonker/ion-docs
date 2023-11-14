@@ -13,7 +13,7 @@ An Ion _document_ is a stream of octets conforming to either the Ion text or bin
 (For our purposes here, a document does not necessarily exist as a file, and isn’t necessarily
 finite.)  The interpretation of those octets is guided by an _encoding environment_, the
 context maintained by an Ion implementation while encoding or decoding a document.
-The Ion 1.0 encoding environment is just the local symbol table.
+The Ion 1.0 encoding environment is just the current symbol table.
 
 The encoding environment is controlled by _directives_ embedded in the document at top-level.
 These are encoding artifacts and are not part of the application data model.
@@ -77,7 +77,7 @@ In Ion 1.1, the encoding environment includes:
   * The current symbol table, assembled from a subset of the available modules.
   * The current macro table, assembled from a subset of the available modules.
 
-NOTE: In Ion 1.0, the local symbol table _is_ the encoding environment.
+NOTE: In Ion 1.0, the current symbol table _is_ the encoding environment.
 
 Upon encountering the `$ion_1_1` IVM, the environment is reset to the default state, in which:
 
