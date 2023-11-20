@@ -179,7 +179,8 @@ Each <field> is either an identifier bound to the field's domain, or
                     (UQ desc_stx)
                     // Delay evaluation of the domains, so they can recurse
                     (thunk (UQ (pair (quote list) domains)))
-                    (apply list (quote (UQ fnames))))))
+                    fnames // CRASH during compilation
+                  )))
               (let def_fields [(domains domains), (fnames fnames), (index 0)]
                 (if (is_empty domains)
                   (sexp (QS (begin)))
