@@ -7,6 +7,21 @@
   <!-- Don't show collaborators/authors table. (Set by xmlto) -->
   <xsl:param name="doc.collab.show">0</xsl:param>
 
+  <!-- Attempt to fix latexdiff errors
+
+    ! LaTeX Error: Option clash for package changebar.
+
+    The package changebar has already been loaded with options:
+      [innerbars,traceon]
+    There has now been an attempt to load it with options
+      [pdftex]
+    Adding the global options:
+      innerbars,traceon,pdftex
+    to your \documentclass declaration may fix this.
+  -->
+  <xsl:param name="latex.class.options">innerbars,traceon,pdftex</xsl:param>
+
+
   <!-- We want the TOC links in the titles, and in blue.
     Documentation:
      http://mirrors.ctan.org/macros/latex/contrib/hyperref/doc/hyperref-doc.html

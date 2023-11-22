@@ -19,6 +19,8 @@ RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install \
     libzstd-dev libwebp-dev pngquant \
     xmlto
 
+RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install latexdiff
+
 # These sparse files do not behave well for large UIDs
 RUN rm /var/log/faillog /var/log/lastlog
 
