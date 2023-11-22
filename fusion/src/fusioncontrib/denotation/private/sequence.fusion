@@ -19,6 +19,7 @@
     make_seq_domain
     seq
     seq_append
+    seq_back
     seq_domain_subdomain
     seq_head
     seq_ith
@@ -188,4 +189,16 @@ within `domain`'s subdomain.
       (raise_argument_error "seq_truncate" "int <= sequence length" 1 seq len))
     (make_value (domain_value_domain seq)
                 (subseq (domain_value_rep seq) 0 (eject_I len))))
+
+  (define_strict (seq_back seq len)
+    "Drop the first `len` elements from the sequence"
+    (unless (is_seq seq)
+      (raise_argument_error "seq_truncate" "seq value" 0 seq len))
+    (unless (and (or (domain_is len I) (is_int len))
+                 (<= 0 (eject_I len)))
+      (raise_argument_error "seq_truncate" "non-negative int" 1 seq len))
+    (unless (<= (eject_I len) (seq_length seq))
+      (raise_argument_error "seq_truncate" "int <= sequence length" 1 seq len))
+    (make_value (domain_value_domain seq)
+                (subseq (domain_value_rep seq) (eject_I len) (seq_length seq))))
 )
