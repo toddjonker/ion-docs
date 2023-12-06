@@ -226,7 +226,8 @@ Spec Issues: 1.0
     //==========================================================================
     // Expansion of abstract syntax trees into values
 
-    (dom Environment = (* Catalog::catalog
+    (dom Environment = (* Evaluator::eval
+                          Catalog::catalog
                           Module::sysModule
                           ModuleMap::modules
                           'SymTok*'::docSymbols
@@ -359,14 +360,15 @@ Spec Issues: 1.0
     (dom Evaluator = (-> Document Catalog 'Value*'))
 
     (fn mk_Evaluator ((p Parser) -> Evaluator)
-      (mk_fn Evaluator (d c)
-        (let [(p0 (p d)),
-              (r0 (tuple Environment c (systemModule IVM_1_0)
-                    emptyModuleMap
-                    EMPTY_SYMTOKS
-                    (seq 'Unicode*' /* No user macros installed */))),
-              (k0 (mk_fn TContinuation (r vs) vs))]
-          (TE_ParseStream p0 r0 k0))))
+      (letrec [(eval (mk_fn Evaluator (d c)
+                       (let [(p0 (p d)),
+                             (r0 (tuple Environment eval c (systemModule IVM_1_0)
+                                   emptyModuleMap
+                                   EMPTY_SYMTOKS
+                                   (seq 'Unicode*' /* No user macros installed */))),
+                             (k0 (mk_fn TContinuation (r vs) vs))]
+                         (TE_ParseStream p0 r0 k0))))]
+        eval))
 
 
     (dom TContinuation = (-> Environment 'Value*' 'Value*')
@@ -416,6 +418,7 @@ Spec Issues: 1.0
 
     (fn compile_IVM ((i IVM) (r Environment) -> Environment)
       (tuple Environment
+        (Environment_eval r)
         (Environment_catalog r)
         (systemModule i)
         emptyModuleMap
@@ -442,6 +445,7 @@ Spec Issues: 1.0
               (ss (map 'SymTok*' compile_LST_symbol
                     (normalize_list (Struct_get1 s "symbols"))))]
           (tuple Environment
+            (Environment_eval r)
             (Environment_catalog r)
             (Environment_sysModule r)
             emptyModuleMap
@@ -914,6 +918,7 @@ Spec Issues: 1.0
       (if (not (seq_is_empty vs))
         (wrong "Unexpected encoding clause: " (seq_head vs))
         (tuple Environment
+          (Environment_eval r)
           (Environment_catalog r)
           (Environment_sysModule r)
           avail
@@ -1063,6 +1068,32 @@ Spec Issues: 1.0
         (seq 'Unicode?*'
           (opt 'Unicode?' "$ion_literal")
           /* ... */)))
+
+
+    // Would be nice to use the signature-compiler to build the system module.
+    // call-site could use a quoting operator, but what does that produce?
+
+    // Normal Fusion `quote` returns data, which could auto-inject into Document
+    // However, we can't parse the Document without an Environment, and
+    // the system modules are defined as constants that don't have access to the
+    // environment.
+
+    // We could build a custom `QUOTE` that would somehow return Value.
+    // But how to get that into the domain model?
+    // It's behavior is specific to the Ion model, so the DSL can't provide it.
+    // It could come from outside the model but in the containing Fusion module.
+    // But that code doesn't have access to the Parser either.
+    // Key problem, perhaps, is we don't have a way to create any Value except
+    // manually or via evaluation, for which we need STrees, and we similarly
+    // have no way to create those except via the testing infrastructure.
+
+    // I don't see how to achieve this (parsing system macro signatures)
+    // without tying the systemMacros production to the Environment or Parser.
+
+    // Oh wait can we use a Fusion parameter?
+    // Nope, because the const systemModule is evaluated while instantiating this module!
+    // So we need to delay that until we have a parser.
+
 
     (const systemMacros_1_1
       ('hint:multiline'
