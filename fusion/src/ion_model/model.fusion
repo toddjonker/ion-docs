@@ -92,9 +92,19 @@ Spec Issues: 1.0
   '''
 
 
-  (require "/fusioncontrib/denotation/dsl")
+  (require
+    "/fusion/parameter"
+    "/fusioncontrib/denotation/dsl")
 
   (provide (all_defined_out))
+
+
+  (define current_evaluator (make_parameter (void)))
+  (define current_catalog   (make_parameter (void)))
+
+  // We don't want to print this hack, so it's defined outside the model.
+  (define_fn parse_Document ((doc Document) -> 'Value*')
+    ((current_evaluator) doc (current_catalog)))
 
 
   (define_model Ion

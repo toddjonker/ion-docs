@@ -23,6 +23,7 @@ We "tunnel" special tokens as follows:
     "/fusion/exception"
     "/fusion/experimental/check"
     "/fusion/experimental/syntax"
+    "/fusion/parameter"
     "/fusioncontrib/denotation"
     "/fusioncontrib/denotation/testing"
     "/fusioncontrib/denotation/private/util"
@@ -298,11 +299,14 @@ We "tunnel" special tokens as follows:
 
   (define (mk_stream tlvs)
     (mk_fn ParseStream (parse_env)
-      (if (is_empty tlvs)
-        (opt 'ParseStep?')
-        (opt 'ParseStep?'
-          (tuple ParseStep (mk_TSTree (head tlvs))
-                           (mk_stream (tail tlvs)))))))
+      (if (is_string tlvs)
+        // TODO this only accepts exactly one TLV
+        ((mk_stream (sexp (with_ion_from_string tlvs read))) parse_env)
+        (if (is_empty tlvs)
+          (opt 'ParseStep?')
+          (opt 'ParseStep?'
+            (tuple ParseStep (mk_TSTree (head tlvs))
+                             (mk_stream (tail tlvs))))))))
 
   (define parser
     (mk_fn Parser (doc)
@@ -313,7 +317,9 @@ We "tunnel" special tokens as follows:
 
 
   (define (evaluate input catalog)
-    (evaluator (inject_into Document input) catalog))
+    (parameterize [(current_evaluator evaluator),
+                   (current_catalog   catalog)]
+      (evaluator (inject_into Document input) catalog)))
 
   (define (expand_doc input)
     "Parse top-level inputs (contained in a sequence) into `TRValue*` then expand it."
