@@ -65,6 +65,7 @@ semantics DSL.
       (AND    and)
       (APPLY  apply)
       (EQ     =)
+      (FOLD   fold)
       (GT     >)
       (GTE    >=)
       (IF1    if)

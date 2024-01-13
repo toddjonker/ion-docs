@@ -512,16 +512,13 @@ Spec Issues: 1.0
     // LST imports field
 
     (fn compile_LST_imports ((vs 'Value*') (r Environment) -> 'SymTok*')
-      // Would be nice to `map`, but this has two args and appends, not cons'es.
-      // [FOLD] might do the trick.
-      (if (seq_is_empty vs)
-        EMPTY_SYMTOKS
-        (let [(c (Value_content (seq_head vs)))]
-          (let [(ts ('hint:oneline'
-                      (if (and (element_of c Struct) (not (element_of c DotNull)))
-                        (compile_import (lower c Struct) r)
-                        EMPTY_SYMTOKS)))]
-            (seq_append ts (compile_LST_imports (seq_tail vs) r))))))
+      (let [(f (lambda (ss v)
+                 (let [(c (Value_content v))]
+                   ('hint:oneline'
+                     (if (and (element_of c Struct) (not (element_of c DotNull)))
+                       (seq_append ss (compile_import (lower c Struct) r))
+                       ss)))))]
+        (fold f (seq 'SymTok*') vs)))
 
     (fn compile_import ((s Struct) (r Environment) -> 'SymTok*')
       (let [(n (normalize_name    (Struct_get1 s "name"   ))),
@@ -944,14 +941,10 @@ Spec Issues: 1.0
             (if (and (= (seq_length args) 1)
                      (Value_is_symbol_matching (seq_head args) "*"))
               (compile_ED_modules (seq_tail vs) mm1 r)
-              // TODO [FOLD]
-              (letrec [(retain (|vs1 mm| (if (seq_is_empty vs1)
-                                           mm
-                                           (retain (seq_tail vs1)
-                                             (ModuleMap_extend mm
-                                               (Value_symtext (seq_head vs1))
-                                               (mm1 (Value_symtext (seq_head vs1))))))))]
-                (compile_ED_modules (seq_tail vs) (retain args mm0) r))))
+              (let [(extend (lambda (mm v) (ModuleMap_extend mm
+                                             (Value_symtext v)
+                                             (mm1 (Value_symtext v)))))]
+                (compile_ED_modules (seq_tail vs) (fold extend mm0 args) r))))
           (compile_ED_modules vs mm0 r))))
 
     (fn compile_ED_modules ((vs 'Value*') (avail ModuleMap) (r Environment) -> Environment)
