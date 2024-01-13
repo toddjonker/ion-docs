@@ -88,6 +88,7 @@ Domains come in several types:
     ith
     seq
     seq_append
+    seq_concat
     seq_head
     seq_is_empty
     seq_length

@@ -510,15 +510,16 @@ Spec Issues: 1.0
             (lift_to SymTok SYM0)))))
 
     // LST imports field
+    (dom 'SymTok**' = (** 'SymTok*'))
 
     (fn compile_LST_imports ((vs 'Value*') (r Environment) -> 'SymTok*')
-      (let [(f (lambda (ss v)
+      (let [(f (lambda (v)
                  (let [(c (Value_content v))]
                    ('hint:oneline'
                      (if (and (element_of c Struct) (not (element_of c DotNull)))
-                       (seq_append ss (compile_import (lower c Struct) r))
-                       ss)))))]
-        (fold f (seq 'SymTok*') vs)))
+                       (compile_import (lower c Struct) r)
+                       (seq 'SymTok*'))))))]
+        (apply seq_concat (seq_prepend (seq 'SymTok*') (map 'SymTok**' f vs)))))
 
     (fn compile_import ((s Struct) (r Environment) -> 'SymTok*')
       (let [(n (normalize_name    (Struct_get1 s "name"   ))),

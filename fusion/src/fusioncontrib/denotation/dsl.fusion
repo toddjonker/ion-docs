@@ -49,6 +49,7 @@ semantics DSL.
     tuple
     seq
     seq_append
+    seq_concat
     seq_head
     seq_is_empty
     seq_length
