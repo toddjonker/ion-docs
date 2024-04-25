@@ -130,6 +130,8 @@
 
 // Reject malformed macro references
 
+// TODO I feel like some of this stuff should be testable in-DSL with `signals`.
+
 (expect_argument_error (in11 (toplevel ('#$:' )) (produces)))
 (expect_argument_error (in11 (toplevel ('#$::' )) (produces)))
 

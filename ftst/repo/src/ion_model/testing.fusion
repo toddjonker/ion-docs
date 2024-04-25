@@ -110,10 +110,15 @@ We "tunnel" special tokens as follows:
 
   // E-expressions
 
+  (define (is_group c)
+    (and (is_pair c)
+         (== (head c) (quote '#$:'))))
+
   (define (is_eexp c)
-    (and (is_sexp c)
+    (and (is_pair c)
          (is_symbol (head c))
-         (string_starts_with (symbol_to_string (head c)) "#$:")))
+         (string_starts_with (symbol_to_string (head c)) "#$:")
+         (not (is_group c))))
 
   (define (mk_MacroRef c)
     (assert (string_starts_with (symbol_to_string c) "#$:") "Not a macro-ref: " c)
@@ -131,8 +136,7 @@ We "tunnel" special tokens as follows:
       (tuple SEexp ref (apply seq 'SEexpArg*' (map mk_SEexpArg (tail c))))))
 
   (define (mk_SEexpArg c)
-    (if (and (is_pair c)
-             (== (head c) (quote '#$:')))
+    (if (is_group c)
       (lift_to SEexpArg (apply seq 'STree*' (map mk_STree (tail c))))
       (lift_to SEexpArg (mk_STree c))))
 

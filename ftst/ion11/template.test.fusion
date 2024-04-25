@@ -211,6 +211,9 @@
             (toplevel ('#$:m' ('#$:values') 1))
             (toplevel ('#$:m' 1 ('#$:values')))
             (signals "Too many arguments")))
+// TODO Can't quite make this work in current testing framework.
+//      (each (toplevel ('#$:m' ('#$:' 1 ('#$:'))))
+//            (signals "Unexpected argument group")))
 
 (in11 (mactab
         (macro m [(v*), w] [v, w]))
