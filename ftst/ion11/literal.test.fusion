@@ -2,6 +2,7 @@
 
 (require "/ion_model/testing/dsl")
 
+// TODO:[CONFORM] these are moving to conformance/ion_literal.ion
 
 // Ion 1.1 uses $ion_literal as a top-level `quote`.
 (in11 (toplevel '#$11' '#$11'::'#$11' '#$11'::1)

@@ -14,6 +14,7 @@
 (check_true (eject (IVM_eq IVM_1_0 (mk_IVM (quote '#$ion_1_0')))))
 (check_true (eject (IVM_eq IVM_1_1 (mk_IVM (quote '#$ion_1_1')))))
 
+// TODO:[CONFORM] most moved to conformance suite
 
 (check_expansion
   (quote_top true true)

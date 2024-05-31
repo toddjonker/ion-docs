@@ -8,6 +8,8 @@
   "/ion_model/testing"
 )
 
+// TODO:[CONFORM] most moved to conformance suite
+
 (define SYSTEM_SYMBOLS_1_0
   (quote ($ion
           $ion_1_0

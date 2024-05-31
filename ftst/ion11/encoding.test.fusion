@@ -3,6 +3,8 @@
 (require "/ion_model/testing/dsl")
 
 
+// TODO:[CONFORM] Moving to conformance/ion_encoding/
+
 // Non-sexps pass through
 (in11
       (then (toplevel 1 $ion_encoding::null 2)

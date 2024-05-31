@@ -2,6 +2,8 @@
 
 (require "/ion_model/testing/dsl")
 
+// TODO:[CONFORM] most of these are moving to conformance/eexp
+//   `annotate` has not yet moved.
 
 // void
 (in11 (each (toplevel 1 ('#$:$ion:void') 2)
@@ -95,6 +97,7 @@
 
 
 // annotate
+// TODO:[CONFORM] these have not moved
 
 // Existing annotations are preserved.
 (in11 (then (toplevel ('#$:annotate' ('#$:') x))
