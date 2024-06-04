@@ -499,6 +499,14 @@
 (check_eval_fail "Malformed `for` form"
   (quote11 $ion_encoding::((module M (macro_table (macro m () (for [] 1 2)))))))
 
+// TODO Should `for` require at least one binding?
+//  Doing so automatically answers the question of (for null.list 1)
+//(check_eval_fail "Malformed `for` form"
+//  (quote11 $ion_encoding::((module M (macro_table (macro m () (for [] 1)))))))
+(in11 (mactab (macro m () (for [] 1)))
+      (toplevel ('#$:m'))
+      (produces))    // Could be surprising; better to run the body once.
+
 (check_eval_fail "Malformed `for` binding pair"
   (quote11 $ion_encoding::((module M (macro_table (macro m () (for [()] 1)))))))
 (check_eval_fail "Malformed `for` binding pair"

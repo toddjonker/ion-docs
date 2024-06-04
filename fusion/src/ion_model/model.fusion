@@ -1257,7 +1257,8 @@ Spec Issues: 1.0
     // Signature compilation
 
     (fn compile_Signature ((v Value) (r MacroEnv) -> Signature)
-      (if (and (element_of (Value_content v) Sexp) (not (element_of (Value_content v) DotNull)))
+      (if (and (element_of (Value_content v) Sexp)
+               (not (element_of (Value_content v) DotNull)))
         (tuple Signature (compile_paramSpecs (Value_seqElements v) (seq 'ParamSpec*') r))
         (wrong "Signature must be a non-null sexp")))
 
@@ -1478,7 +1479,9 @@ Spec Issues: 1.0
     (fn interpSF_for ((vs 'Value*') (scope 'Unicode*') (macroEnv MacroEnv) -> Interpreter)
       (if (= (seq_length vs) 2)
         (let [(bindings (Value_listElements (ith vs 0)))]
+          // TODO reject empty bindings list
           (let [(us (map 'Unicode*' (lambda (b)
+                                      // TODO Why is this not sexpElements?
                                       (let [(vs1 (Value_seqElements b))]
                                         (if (= (seq_length vs1) 2)
                                           (Value_symtext (ith vs1 0))
