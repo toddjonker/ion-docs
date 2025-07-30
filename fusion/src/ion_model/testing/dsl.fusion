@@ -1,0 +1,553 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+(module ion_testing_dsl "/fusion"
+
+  '''
+A DSL for testing the Ion denotational model.
+
+The DSL, with several features not implemented here, is documented by
+https://github.com/amazon-ion/ion-tests/blob/master/conformance/README.md
+
+
+TODOs
+=====
+Implementation:
+  * Store document as pre-computed TSTree*, so we don't repeat the xform.
+    * Update implementation notes below.
+  * `and` and `or` expectations
+  * `denotes` expectation
+    * `annot`
+
+DSL Design:
+  * Propose `(ivm <int> <int>?)` fragment.
+  * Is there any reason to allow continuing with more fragment and expectation?
+    * Yes: to show that a successful doc produces data, but adding an error
+      causes a failure.
+    * Propose  `continuation ::= expectation extension*`
+  * [TAB-BOUNDS] Mechanism to test bounds of current symtab and mactab.
+  '''
+
+  (require
+    "/fusion/experimental/string"
+    "/fusion/experimental/syntax"
+    "/fusioncontrib/denotation"
+    "/ion_model/model"
+    "/ion_model/testing/ast"
+    "/ion_model/testing/bottom"
+    "/ion_model/testing/evaluate"
+    "/ion_model/testing/fragment"
+    "/ion_model/testing/value"
+
+    (only_in "/fusion/private/io"
+      with_output_to_string
+    )
+    (rename_in "/fusion/experimental/syntax"
+      (quote_syntax QS))
+    (rename_in "/fusion/base"
+      (quote Q) (quasiquote QQ) (unquote UQ))
+    (only_in "/fusioncontrib/denotation/testing"
+      display_bottom_stack
+    )
+  )
+
+  (provide
+    document
+    ion_1_0
+    ion_1_1
+    ion_1_x
+  )
+
+  /*
+Implementation Notes
+====================
+
+We interpret the DSL on the fly, walking down the the syntax objects produced
+by the Fusion reader when reading the test cases.  Using syntax objects rather
+than "normal" Ion data means we have the source-code location of each clause
+and can thus report errors at the exact point where failure occurs.
+
+To enable this, the outermost DSL clauses like `document` and `ion_1_x` are
+Fusion macros that expand to a function call receiving the entire outer clause
+as a syntax object.
+
+As we traverse the clauses of a test case, we maintain a list of documents.
+Each "fragment" clause (eg text/binary/toplevel) is turned into a record of a
+correspoding shape.
+Each "extension" clause (eg then/each) adds fragment records to each current
+document; in the case of `each` we duplicate the entire list for each of the
+fragments.
+  */
+
+
+  // Breaking down the DSL's S-expression clauses
+
+  (define (is_clause stx)
+    '''
+A clause is a syntax-object S-expression that starts with a symbol.
+    '''
+    (and (is_syntax stx)
+         (is_pair (syntax_unwrap stx))
+         (is_identifier (syntax_get stx 0))))
+
+  (define (clause_keyword clause_stx)
+    "Extracts the keyword of a clause, returning a symbol."
+    (syntax_unwrap (syntax_get clause_stx 0)))
+
+  (define (clause_args clause_stx)
+    "Extracts the arguments of a clause, returning a sexp of syntax objects."
+    (tail (syntax_unwrap clause_stx)))
+
+  (define (is_keyword_clause stx kw)
+    (and (is_clause stx)
+         (= (clause_keyword stx) kw)))
+
+
+  (define (split_description subforms)
+    '''
+Separates an optional description string from a sexp of subforms.
+
+Returns two values:
+  *  The first subform, if it is a string, otherwise `null.string`
+  *  The remaining subforms
+    '''
+    (if (and (is_pair subforms)
+             (is_string (syntax_unwrap (head subforms))))
+      (values (syntax_unwrap (head subforms)) (tail subforms))
+      (values null.string subforms)))
+
+
+  // A teeny-tiny method dispatch mechanism
+
+  (define dispatch
+    '''
+    (dispatch vtable clause args ...)
+
+Finds a function in the vtable for the clause, the applies it to the clause and args.
+    '''
+    (lambda rest
+      (unless (<= 2 (size rest))
+        (apply raise_arity_error dispatch 2 rest))
+      (let [(vtable (. rest 0)),
+            (clause (. rest 1))]
+        (apply (. vtable (clause_keyword clause)) (tail rest)))))
+
+  (define (can_dispatch vtable stx)
+    (assert (is_struct vtable))
+    (and (is_clause stx)
+         (is_truthy (. vtable (clause_keyword stx)))))
+
+
+  //============================================================================
+  // Denotations are turned into the slightly-mangled data of eject_Values.
+  // (The "mangling" is to handle absent shared symbols.)
+
+  (define (interp_model_value stx)
+    (let [(datum (syntax_unwrap stx))]
+      (unless (is_empty (annotations datum))
+        (wrong_syntax stx "Annotations not supported on `denotes` clauses"))
+      (if (or (is_bool datum)
+              (is_int datum)
+              (is_string datum))
+        datum
+        (if (can_dispatch model_value_vtable stx)
+          (dispatch model_value_vtable stx (clause_args stx))
+          (wrong_syntax stx "Not a supported `denotes` clause")))))
+
+
+  (define (interp_mv_int clause_stx args)
+    (unless (= 1 (size args))
+      (wrong_syntax clause_stx "Malformed clause"))
+    (lets [(arg_stx   (element args 0)),
+           (arg_datum (syntax_unwrap arg_stx))]
+      (unless (is_empty (annotations arg_datum))
+        (wrong_syntax arg_stx "Annotations not allowed on denotation"))
+      (unless (is_int arg_datum)
+        (wrong_syntax arg_stx "Expected int inside Int denotation"))
+      arg_datum))
+
+  (define (interp_mv_list clause_stx args)
+    (apply list (map interp_model_value args)))
+
+  (define (interp_mv_null clause_stx args)
+    (cond
+      ((= 0 (size args)) null)
+      ((= 1 (size args)) (lets [(type   (syntax_unwrap (head args))),
+                                (result (elt null_values type))]
+                           (if (is_void result)
+                             (wrong_syntax clause_stx "Invalid model type in Null")
+                             result)))
+      (true (wrong_syntax clause_stx "Malformed clause"))))
+
+  (define null_values
+    (quote { blob:      null.blob,
+             bool:      null.bool,
+             clob:      null.clob,
+             decimal:   null.decimal,
+             float:     null.float,
+             int:       null.int,
+             list:      null.list,
+             sexp:      null.sexp,
+             string:    null.string,
+             struct:    null.struct,
+             symbol:    null.symbol,
+             timestamp: null.timestamp }))
+
+  (define (interp_mv_sexp clause_stx args)
+    (map interp_model_value args))
+
+  (define (interp_mv_string clause_stx args)
+    (interp_codepoints args))
+
+  (define (interp_mv_struct clause_stx args)
+    (for_struct [(f_stx args)]
+      (let [(f f_stx)]
+        (unless (= 2 (syntax_size f))
+          (wrong_syntax clause_stx "Malformed model of struct field"))
+        (values (interp_model_symtok (syntax_get f 0))
+                (interp_model_value  (syntax_get f 1))))))
+
+  (define (interp_mv_symbol clause_stx args)
+    (unless (= 1 (size args))
+      (wrong_syntax clause_stx "Malformed clause"))
+    (interp_model_symtok (head args)))
+
+
+  // TODO:[DATA-TYPES] blob, clob, decimal, float, timestamp
+  (define model_value_vtable
+    {
+      Int:    interp_mv_int,
+      List:   interp_mv_list,
+      Null:   interp_mv_null,
+      Sexp:   interp_mv_sexp,
+      String: interp_mv_string,
+      Struct: interp_mv_struct,
+      Symbol: interp_mv_symbol
+    })
+
+
+
+  (define (interp_model_symtok arg)                                 // -> symbol
+    (if (is_string (syntax_unwrap arg))
+      (string_to_symbol (syntax_unwrap arg))
+      // TODO What about the `int` option?
+      (if (can_dispatch model_symtok_vtable arg)
+        (dispatch model_symtok_vtable arg (clause_args arg))
+        (wrong_syntax arg "Malformed model of symbol token"))))
+
+  (define (interp_model_symtok_absent clause_stx args)              // -> symbol
+    (unless (= 2 (size args))
+      (wrong_syntax clause_stx "Malformed clause"))
+    (let [(symtab (syntax_unwrap (. args 0))),
+          (index  (syntax_unwrap (. args 1)))]
+      (mangle_absent_symbol symtab index)))
+
+  (define (interp_model_symtok_text clause_stx args)                // -> symbol
+    (string_to_symbol (interp_codepoints args)))
+
+  (define (interp_codepoints args)                                  // -> string
+    (let [(codepoints (map syntax_unwrap args))]
+      (string_implode (apply list codepoints))))
+
+  (define model_symtok_vtable
+    {
+      absent: interp_model_symtok_absent,
+      text:   interp_model_symtok_text,
+    })
+
+
+  //============================================================================
+  // Expectations are interpreted by methods accepting a document and the
+  // result of evaluating it.  Successful evaluation returns `Values*` while
+  // unsuccessful evaluation returns Bottom.
+
+  (define (verify_output clause_stx doc description expected_data result)
+      (when (is_bottom result)
+        (raise_contract_error (clause_keyword clause_stx)
+          (with_output_to_string
+            (displayln "Failure at L" (syntax_line clause_stx) ":" (syntax_column clause_stx))
+            (displayln "Unexpected bottom.")
+            (when description (displayln "Description: " description))
+            (display "Document: ")
+            (writeln doc)
+            (display "Expected: ")
+            (writeln expected_data)
+            (display "Message:  ")
+            (displayln (pretty_bottom_message result))
+            (display_bottom_stack result))))
+      (let [(actual_data (eject_Values result))]
+        (unless (=== expected_data actual_data)
+          (raise_contract_error (clause_keyword clause_stx)
+            (with_output_to_string
+              (displayln "Failure at L" (syntax_line clause_stx) ":" (syntax_column clause_stx))
+              (displayln "Document didn't produce expected output.")
+              (when description (displayln "Description: " description))
+              (display "Document: ")
+              (writeln doc)
+              (display "Expanded: ")
+              (writeln actual_data)
+              (display "Expected: ")
+              (writeln expected_data))))))
+
+  (define (interp_denotes clause_stx doc description result)
+    // TODO arity and typecheck
+    (let [(expected_data (map interp_model_value (clause_args clause_stx)))]
+      (verify_output clause_stx doc description expected_data result)))
+
+  (define (interp_produces clause_stx doc description result)
+    // TODO arity and typecheck
+    (let [(expected_data (syntax_to_datum (syntax_subseq clause_stx 1)))]
+      (verify_output clause_stx doc description expected_data result)))
+
+
+  (define (interp_signals clause_stx doc description result)
+    // TODO arity and typecheck
+    (let [(expected (syntax_unwrap (head (clause_args clause_stx))))]
+      (if (is_bottom result)
+        (let [(actual (pretty_bottom_message result))]
+          (unless (and (string_ends_with expected ":")
+                       (string_starts_with actual expected))
+            (unless (=== expected actual)
+              (raise_contract_error (quote signals)
+                (with_output_to_string
+                  (displayln "Failure at L" (syntax_line clause_stx) ":" (syntax_column clause_stx))
+                  (displayln "Document didn't signal the expected error.")
+                  (when description (displayln "Description: " description))
+                  (display "Document: ")
+                  (writeln doc)
+                  (display "Expected: ")
+                  (writeln expected)
+                  (display "Signaled: ")
+                  (writeln actual)
+                  (display_bottom_stack result))))))
+        (let [(actual_data (eject_Values result))]
+          (raise_contract_error (quote signals)
+            (with_output_to_string
+              (displayln "Failure at L" (syntax_line clause_stx) ":" (syntax_column clause_stx))
+              (displayln "Document didn't signal an error.")
+              (when description (displayln "Description: " description))
+              (display "Document: ")
+              (writeln doc)
+              (display "Expanded: ")
+              (writeln actual_data)
+              (display "Expected: ")
+              (writeln expected)))))))
+
+
+  (define expectation_vtable
+    { denotes:  interp_denotes,
+      produces: interp_produces,
+      signals:  interp_signals,
+    })
+
+  (define (is_expectation_clause stx)
+    (can_dispatch expectation_vtable stx))
+
+  (define (interp_expectation clause_stx docs description)
+    '''
+Validates each of the given `docs` against the expectation in `clause_stx`.
+Returns nothing, but raises an error if the expectation is not met.
+    '''
+    (unless (is_expectation_clause clause_stx)
+      (wrong_syntax clause_stx "Not an expectation"))
+    (for [(doc docs)]
+      (with_handlers
+        [(is_UnimplementedFragmentType handle_UnimplementedFragmentType),
+         (is_UnimplementedDataType     handle_UnimplementedDataType)]
+        (let [(result (evaluate doc))]
+          (dispatch expectation_vtable clause_stx doc description result)))))
+
+  (define (handle_UnimplementedFragmentType e)
+    (display "Ignoring document with unimplemented fragment type: ")
+    (displayln (UnimplementedFragmentType_type e)))
+
+  (define (handle_UnimplementedDataType e)
+    (display "Ignoring document with unimplemented data type: ")
+    (writeln (UnimplementedDataType_data e)))
+
+
+  //============================================================================
+  // Fragment clauses are interpreted by methods that transform their subforms
+  // into a sequence of top-level elements to be added to each in-progress document.
+
+  (define (interp_text clause_stx args)
+    (apply text_fragment args))
+
+  (define (interp_binary clause_stx args)
+    (apply binary_fragment args))
+
+  (define (interp_ivm clause_stx args)
+    (let [(major (element args 0)),
+          (minor (element args 1))]
+      (ivm_fragment major minor)))
+
+  (define (interp_toplevel clause_stx args)
+    (apply ast_fragment args))
+
+  (define (interp_encoding clause_stx args)
+    (ast_fragment (annotate args (Q $ion_encoding))))
+
+  (define (interp_mactab clause_stx macros)
+    (lets [(mactab   (pair (quote macro_table) macros)),
+           (encoding (QQ ((module M (UQ mactab)) (macro_table M))))]
+      (interp_encoding clause_stx encoding)))
+
+
+  (define fragment_vtable
+    {
+      binary:   interp_binary,
+      encoding: interp_encoding,
+      ivm:      interp_ivm,
+      mactab:   interp_mactab,
+      text:     interp_text,
+      toplevel: interp_toplevel,
+    })
+
+  (define (is_fragment_clause stx)
+    (can_dispatch fragment_vtable stx))
+
+  (define (interp_fragment stx docs)
+    '''
+Extends each of the given `docs` with the top-level document fragment described
+by the clause `stx`.  Returns the extended set of documents.
+    '''
+    (unless (is_fragment_clause stx)
+      (wrong_syntax stx "Expected fragment"))
+    // Drop location info from the fragment data.
+    (lets [(args     (map syntax_to_datum (clause_args stx))),
+           (fragment (dispatch fragment_vtable stx args))]
+      (map (|d| (extend_document d fragment)) docs)))
+
+
+  //============================================================================
+  // Extensions are interpreted by methods that take a list of in-progress documents,
+  // extend them with the nested fragment(s), then interpret the nested continuation.
+
+  (define (interp_then clause_stx docs description fragments continuation)
+    (let [(docs (fold_left (|ds f| (interp_fragment f ds)) docs fragments))]
+      (interp_continuation continuation docs description)))
+
+
+  (define (interp_each each_stx docs description fragments continuation)
+    (if (is_empty fragments)
+      (interp_continuation continuation docs description)
+      (for [(fragment fragments)]
+        (let [(docs (interp_fragment fragment docs))]
+          (interp_continuation continuation docs description)))))
+
+
+  (define extension_vtable
+    { then: interp_then,
+      each: interp_each,
+    })
+
+  (define (is_extension_clause stx)
+    (can_dispatch extension_vtable stx))
+
+  (define (interp_extension clause_stx docs description)
+    (unless (is_extension_clause clause_stx)
+      (wrong_syntax clause_stx "Expected a document extension"))
+    (let_values [((descr fragments continuation)
+                  (split_extension clause_stx))]
+      (let [(new_descr (extend_description description descr))]
+        (dispatch extension_vtable
+          clause_stx docs new_descr fragments continuation))))
+
+
+  (define (split_extension extension_stx)
+    '''
+Given a clause of the form:
+
+    "("  <KEYWORD>  description?  fragment*  continuation  ")"
+
+returns three values:
+  * a string description; potentially null.string
+  * a sexp of the leading fragments
+  * a sexp of the remaining clauses.
+
+The fragment sexp may be empty (to support use by `in10` and siblings).
+The continuation sexp will not be empty, but otherwise is not validated here.
+    '''
+    (let_values [((description clauses) (split_description (clause_args extension_stx)))]
+      (let loop [(fragments (quote ())),         // Accumulated in reverse order
+                 (clauses   clauses)]
+        (if (is_fragment_clause (head clauses))
+          (loop (pair (head clauses) fragments) (tail clauses))
+          // No more fragments; assume the rest is the continuation (to be validated later).
+          (if (is_empty clauses)
+            (wrong_syntax extension_stx "Expected at least one continuation clause")
+            (values description (reverse fragments) clauses))))))
+
+  (define (extend_description front back)
+    (if (and front back)
+      (string_append front " " back)
+      (or front back)))
+
+
+  //============================================================================
+  // Continuations dispatch multiple clauses.
+
+  (define (interp_continuation continuation docs description)
+    '''
+Interprets the continuation of a test case, as split from the body of an
+extension or `in1*` form.
+
+    continuation ::=  expectation  |  extension+
+    '''
+    (assert (is_pair continuation))                      // Per split_extension
+    // continuation ::=  expectation  |  extension+
+    (let [(first_clause (head continuation))]
+      (if (is_expectation_clause first_clause)
+        (if (is_empty (tail continuation))
+          (interp_expectation first_clause docs description)
+          (wrong_syntax (. continuation 1) "Extraneous form after an expectation clause"))
+          (if (is_extension_clause first_clause)
+            (do (|c| (interp_extension c docs description)) continuation)
+            (wrong_syntax first_clause "Expected a fragment, expectation, or extension")))))
+
+
+  //============================================================================
+  // These outer-edge forms bootstrap the tests by feeding its body the
+  // appropriate document prologue(s).
+
+  (define (interp_document stx)
+    (let_values [((descr fragments continuation)
+                  (split_extension stx))]
+      (interp_then stx [empty_document] descr fragments continuation)))
+
+  (define_syntax document
+    (lambda (stx)
+      (datum_to_syntax
+        (QQ (interp_document (QS (UQ stx))))
+        (QS context)
+        stx)))
+
+
+  (define (document_with_minors stx minors)
+    '''
+Expand a `ion_1_*` form into a `document` clause for the given minor versions.
+
+Given syntax `(ion_i_* <descr>? <clause>...)`,
+produces `(document (then <descr> (ivm 1 <minor>) <clause>...) ...)`
+       '''
+    (let_values [((descr clauses) (split_description (clause_args stx)))]
+      (let [(body (for_sexp [(minor minors)]
+                    (let [(ivm (sexp (Q ivm) 1 minor))]
+                      (pair (Q then) (pair descr (pair ivm clauses))))))]
+        (datum_to_syntax
+          (pair (QS document) body)
+          (QS context)
+          stx))))
+
+  (define_syntax ion_1_0
+    (lambda (stx)
+      (document_with_minors stx [0])))
+
+  (define_syntax ion_1_1
+    (lambda (stx)
+      (document_with_minors stx [1])))
+
+  (define_syntax ion_1_x
+    (lambda (stx)
+      (document_with_minors stx [0, 1])))
+)

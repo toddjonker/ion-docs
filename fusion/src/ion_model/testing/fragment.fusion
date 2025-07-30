@@ -1,0 +1,172 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+(module fragment "/fusion"
+
+  '''
+Implementations of conformance test fragments and documents.
+
+At present, a document is represented as an S-expression holding the
+concatenated fragments.
+
+Each fragment form has a corresponding record type, so we can dispatch
+parsing appropriately.
+
+In `toplevel` fragments, the data are all `ast` forms with encoded syntax
+elements like `'#$99'` or `('#$:void')`.
+We decode fragments in our `Parser` implementation, defined here as an input to
+the semantic model, while the document is being evaluated.
+  '''
+
+  (require
+    "/fusion/experimental/string"
+    "/fusion/private/record"
+    "/fusioncontrib/denotation"
+    "/ion_model/model"
+    "/ion_model/testing/ast"
+  )
+
+  (provide
+    UnimplementedFragmentType_type
+    ast_fragment
+    binary_fragment
+    document_parser
+    empty_document
+    extend_document
+    is_UnimplementedFragmentType
+    is_document
+    ivm_fragment
+    parse_fragment
+    text_fragment
+    write_document
+  )
+
+  // Sometimes we can't handle everything yet.
+  (record UnimplementedFragmentType (type))
+
+
+  // Base class for fragments
+  (record Fragment ())
+
+  // TODO Use record dispatch
+  (define (parse_fragment frag k)                             // -> ParseStream
+    (cond
+      ((is_ast_fragment    frag) (parse_ast_fragment    frag k))
+      ((is_binary_fragment frag) (parse_binary_fragment frag k))
+      ((is_ivm_fragment    frag) (parse_ivm_fragment    frag k))
+      ((is_text_fragment   frag) (parse_text_fragment   frag k))
+      (true (raise_argument_error "parse_fragment" "fragment" 0 frag k))))
+
+
+  //===========================================================================
+  // Text fragments
+
+  (define_values
+    ('record:text_fragment' text_fragment is_text_fragment text_fragment_get)
+    (make_record_type (quote text_fragment) 'record:Fragment' 1))
+    // One field: sexp holding the clause's args (as syntax objects)
+
+  (define (parse_text_fragment frag k)                        // -> ParseStream
+    (unless (is_text_fragment frag)
+      (raise_argument_error "parse_text_fragment" "text_fragment" 0 frag k))
+    (raise (UnimplementedFragmentType "text")))
+
+
+  //===========================================================================
+  // Binary fragments
+
+  (define_values
+    ('record:binary_fragment' binary_fragment is_binary_fragment binary_fragment_get)
+    (make_record_type (quote binary_fragment) 'record:Fragment' 1))
+    // One field: sexp holding the clause's args (as syntax objects)
+
+  (define (parse_binary_fragment frag k)                      // -> ParseStream
+    (unless (is_binary_fragment frag)
+      (raise_argument_error "parse_binary_fragment" "binary_fragment" 0 frag k))
+    (raise (UnimplementedFragmentType "binary")))
+
+
+  //===========================================================================
+  // IVM fragments
+
+  (define_values
+    ('record:ivm_fragment' ivm_fragment is_ivm_fragment ivm_fragment_get)
+    (make_record_type (quote ivm_fragment) 'record:Fragment' 2))
+    // Fields are the major and minor versions (ints)
+
+  (define (parse_ivm_fragment frag k)                         // -> ParseStream
+    (let [(major (ivm_fragment_get frag 0)),
+          (minor (ivm_fragment_get frag 1))]
+      (mk_fn ParseStream (parse_env)   // IVM -> ParseStep?
+        (opt 'ParseStep?'
+          (tuple ParseStep (lift_to TSTree (tuple IVM major minor)) k)))))
+
+
+  //===========================================================================
+  // AST fragments
+
+  (define_values
+    ('record:AstFragment' AstFragment is_ast_fragment AstFragment_get)
+    (make_record_type (quote AstFragment) 'record:Fragment' 1))
+
+
+  (define ast_fragment
+    '''
+    (ast_fragment fragment ...)
+    '''
+    (lambda asts
+      (AstFragment asts)))
+
+  (define (ast_fragment_asts frag)
+    (AstFragment_get frag 0))
+
+  (define parse_empty                                         // -> ParseStream
+    (mk_fn ParseStream (parse_env)
+      (opt 'ParseStep?')))
+
+  (define (parse_asts asts k)                                 // -> ParseStream
+    (mk_fn ParseStream (parse_env)   // IVM -> ParseStep?
+      (if (is_empty asts)
+        (k parse_env)
+        (opt 'ParseStep?'
+          (tuple ParseStep (mk_TSTree  (head asts))
+                           (parse_asts (tail asts) k))))))
+
+  (define (parse_ast_fragment frag k)                         // -> ParseStream
+    (unless (is_ast_fragment frag)
+      (raise_argument_error "parse_ast_fragment" "ast_fragment" 0 frag k))
+    (parse_asts (ast_fragment_asts frag) k))
+
+
+  (define (parse_fragments fragments k)                       // -> ParseStream
+    (if (is_empty fragments)
+      k
+      (parse_fragment (head fragments)
+        (parse_fragments (tail fragments) k))))
+
+
+  //===========================================================================
+  // Documents
+
+  // For now a document is a sexp of fragments
+  (define (is_document v)
+    (and (is_sexp v) (every is_Fragment v)))
+
+  (define empty_document (quote ()))
+
+  (define (extend_document doc frag)
+    (unless (is_document doc)
+      (raise_argument_error "extend_document" "document" 0 doc frag))
+    (unless (is_Fragment frag)
+      (raise_argument_error "extend_document" "fragment" 1 doc frag))
+    (append doc [frag]))
+
+  (define (write_document doc)
+    (assert (is_document doc) "Not a document: " doc)
+    (write doc))
+
+
+  (define document_parser
+    (mk_fn Parser (doc)                              // Document -> ParseStream
+      (parse_fragments (eject doc) parse_empty)))
+)
