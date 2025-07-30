@@ -97,6 +97,8 @@ the semantic model, while the document is being evaluated.
   (define (parse_ivm_fragment frag k)                         // -> ParseStream
     (let [(major (ivm_fragment_get frag 0)),
           (minor (ivm_fragment_get frag 1))]
+      (when (and (== major 1) (== minor 1))
+        (raise (UnimplementedFragmentType "$ion_1_1")))
       (mk_fn ParseStream (parse_env)   // IVM -> ParseStep?
         (opt 'ParseStep?'
           (tuple ParseStep (lift_to TSTree (tuple IVM major minor)) k)))))

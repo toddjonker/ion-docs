@@ -100,38 +100,6 @@ Notably this must decode the DSL's special #$ symbols.
             (tuple SField (mk_SSymTok k) (mk_STree v)))))))
 
 
-  // E-expressions look like `('#$:module:macro' ...)`
-
-  (define (denotes_eexp c)
-    (and (is_sexp c)
-         (is_symbol (head c))
-         (not (is_null (head c)))
-         (string_starts_with (symbol_to_string (head c)) "#$:")))
-
-  (define (mk_MacroRef c)
-    (assert (string_starts_with (symbol_to_string c) "#$:") "Not a macro-ref: " c)
-    (lets [(chars (string_explode (symbol_to_string c))),
-           // Drop the "#$" prefix
-           (sym   (string_implode (subseq chars 2 (size chars)))),
-           (ref   (parseMacroRef sym))]
-      (when (is_bottom ref)
-        // TODO: Improve message when triggered from the conformance DSL.
-        (raise_argument_error "mk_MacroRef" "well-formed macro-ref" 0 c))
-      ref))
-
-  (define (mk_SEexp c)
-    (let [(ref (mk_MacroRef (head c)))]
-      (tuple SEexp ref (apply seq 'SEexpArg*' (map mk_SEexpArg (tail c))))))
-
-  // Argument groups look like `('#$:' ...)`
-
-  (define (mk_SEexpArg c)
-    (if (and (is_sexp c)
-             (=== (head c) (quote '#$:')))
-      (lift_to SEexpArg (apply seq 'STree*' (map mk_STree (tail c))))
-      (lift_to SEexpArg (mk_STree c))))
-
-
   // Values
 
   (define (mk_SValue c)
@@ -154,9 +122,7 @@ Notably this must decode the DSL's special #$ symbols.
 
   (define (mk_STree c)   // Syntax trees = SEexp or SValue
     (lift_to STree
-      (if (denotes_eexp c)
-        (mk_SEexp c)
-        (mk_SValue c))))
+      (mk_SValue c)))
 
   (define (mk_TSTree c)  // Top-level syntax trees = IVM or STree
     (lift_to TSTree
